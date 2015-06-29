@@ -145,11 +145,11 @@ LIBS += -lrte_pmd_vmxnet3_uio
 endif
 
 ifeq ($(CONFIG_RTE_LIBRTE_VIRTIO_PMD),y)
-ifeq ($(shell [ $(RTE_VER_MAJOR) -ge 2 ] && echo true),true)
-  LIBS += -lrte_pmd_virtio
-else
+#ifeq ($(shell [ $(RTE_VER_MAJOR) -ge 2 ] && [ $(RTE_VER_MINOR) -ge 1 ] && echo true),true)
+#  LIBS += -lrte_pmd_virtio
+#else
   LIBS += -lrte_pmd_virtio_uio
-endif
+#endif
 endif
 
 ifeq ($(CONFIG_RTE_LIBRTE_I40E_PMD),y)

@@ -25,7 +25,7 @@
 #include <rte_mempool.h>
 #include <rte_pci.h>
 #include <rte_version.h>
-
+#include <rte_errno.h>
 
 CLICK_DECLS
 
@@ -69,7 +69,7 @@ unsigned int DpdkDevice::get_nb_txdesc(unsigned port_no)
     return info->n_tx_descs;
 };
 
-static bool alloc_pktmbufs()
+static bool alloc_pktmbufs(ErrorHandler *errh)
 {
     // Count sockets
     int max_socket = -1;
@@ -79,14 +79,20 @@ static bool alloc_pktmbufs()
         if (numa_node > max_socket)
             max_socket = numa_node;
     }
-    if (max_socket == -1)
+    if (max_socket == -1) {
+        errh->error("alloc_pktmbufs: no NUMA devices available");
         return false;
+    }
 
     // Allocate pktmbuf_pool array
     typedef struct rte_mempool *rte_mempool_p;
     _pktmbuf_pools = new rte_mempool_p[max_socket + 1];
-    if (!_pktmbuf_pools)
+
+    if (!_pktmbuf_pools) {
+        errh->error("alloc_pktmbufs: unable to allocate memory for rte_mempool structs");
         return false;
+    }
+
     memset(_pktmbuf_pools, 0,
            (max_socket + 1) * sizeof (struct rte_mempool *));
 
@@ -103,8 +109,10 @@ static bool alloc_pktmbufs()
                     sizeof (struct rte_pktmbuf_pool_private),
                     rte_pktmbuf_pool_init, NULL, rte_pktmbuf_init, NULL,
                     numa_node, 0);
-            if (!_pktmbuf_pools[numa_node])
+            if (!_pktmbuf_pools[numa_node]) {
+                errh->error("alloc_pktmbufs: rte_mempool_create: %s", rte_strerror(rte_errno));
                 return false;
+            }
         }
     }
 
@@ -264,7 +272,7 @@ int DpdkDevice::initialize(ErrorHandler *errh)
         if (it.key() >= n_ports)
             return errh->error("Cannot find DPDK port %u", it.key());
 
-    if (!alloc_pktmbufs())
+    if (!alloc_pktmbufs(errh))
         return errh->error("Could not allocate packet MBuf pools");
 
     for (HashMap<unsigned, DevInfo>::const_iterator it = _devs.begin();
